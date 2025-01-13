@@ -37,14 +37,18 @@ async def read_all(user: user_dependency, db: db_dependency):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
     return db.query(Todo).filter(Todo.owner_id == user.get('id')).all()
 
-@router.get("/get_by_id/{todo_id}",status_code=status.HTTP_200_OK)
-async def read_by_id(db: db_dependency, todo_id: int = Path(gt=0)):
-    todo = db.query(Todo).filter(Todo.id == todo_id).first()
+@router.get("/todo/{todo_id}",status_code=status.HTTP_200_OK)
+async def read_by_id(user:user_dependency, db: db_dependency, todo_id: int = Path(gt=0)):
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+
+    todo = db.query(Todo).filter(Todo.id == todo_id).filter(Todo.owner_id == user.get('id')).first()
+
     if todo is not None:
         return todo
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo not found")
 
-@router.post("/create_todo",status_code=status.HTTP_201_CREATED)
+@router.post("/todo",status_code=status.HTTP_201_CREATED)
 async def create_todo(user:user_dependency, db: db_dependency, todo_request: TodoRequest):
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
@@ -53,8 +57,11 @@ async def create_todo(user:user_dependency, db: db_dependency, todo_request: Tod
     db.add(todo)
     db.commit()
 
-@router.put("/update_todo/{todo_id}")
-async def update_todo(db: db_dependency,todo_request: TodoRequest, todo_id: int = Path(gt=0),):
+@router.put("/todo/{todo_id}")
+async def update_todo(user: user_dependency, db: db_dependency,todo_request: TodoRequest, todo_id: int = Path(gt=0),):
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+
     todo = db.query(Todo).filter(Todo.id == todo_id).first()
     if todo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo not found")
@@ -67,9 +74,12 @@ async def update_todo(db: db_dependency,todo_request: TodoRequest, todo_id: int 
     db.add(todo)
     db.commit()
 
-@router.delete("/delete_todo/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_todo(db: db_dependency, todo_id: int = Path(gt=0)):
-    todo = db.query(Todo).filter(Todo.id == todo_id).first()
+@router.delete("/todo/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_todo(user: user_dependency, db: db_dependency, todo_id: int = Path(gt=0)):
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+
+    todo = db.query(Todo).filter(Todo.id == todo_id).filter(Todo.owner_id == user.get('id')).first()
     if todo is None:
        raise HTTPException(status_code=status.HTTP_404_N0T_FOUND, detail="Todo not found")
     db.delete(todo)
